@@ -18,10 +18,36 @@ class MerlinDS(Device):
         DevState.MOVING : The Device is engaged in an acquisition.
     """
 
-    # properties
+    # Properties
     Host = device_property(dtype=str, default_value='b303a-a100384-dia-detpicu-02.maxiv.lu.se', doc="hostname")
     DataPort = device_property(dtype=int, default_value=6342)
     CommandPort = device_property(dtype=int, default_value=6341)
+
+    # Commands
+    @command()
+    def startacquisition(self):
+        self.merlin.send_command('STARTACQUISITION')
+
+    @command()
+    def stopacquisition(self):
+        self.merlin.send_command('STOPACQUISITION')
+
+    @command()
+    def softtrigger(self):
+        self.merlin.send_command('SOFTTRIGGER')
+
+    @command()
+    def reset(self):
+        self.merlin.send_command('RESET')
+
+    # Attributes
+    @attribute(label='operating energy', dtype=int, doc='photon energy (keV)')
+    def energy(self):
+        return self.merlin.get_prop('OPERATINGENERGY')
+
+    @energy.write
+    def energy(self, val):
+        self.merlin.set_prop('OPERATINGENERGY', val)
 
     # Device methods
     def init_device(self):
