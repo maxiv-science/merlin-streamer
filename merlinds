@@ -1,5 +1,5 @@
 #!/usr/bin/python3
 from tango.server import server_run
-from merlinlib.MerlinDS import MerlinDS
+from merlin.MerlinDS import MerlinDS
 server_run((MerlinDS,))
 

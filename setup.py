@@ -8,7 +8,7 @@ setup(name = "tangods-merlin",
       author_email = "alexander.bjorling@maxiv.lu.se",
       license = "GPLv3",
       url = "http://www.maxiv.lu.se",
-      packages = ['merlinlib'],
+      packages = ['merlin'],
       package_dir = {'':'.'},
       scripts = ['merlinds']
      )
