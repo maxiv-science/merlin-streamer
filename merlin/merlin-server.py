@@ -99,4 +99,7 @@ def put_num_frames_per_trigger(request):
     return response.text('')
 
 if __name__ == '__main__':
-  app.run(host='0.0.0.0', port=8000)
+    try:
+        app.run(host='0.0.0.0', port=8000)
+    except KeyboardInterrupt:
+        merlin.process.terminate()
