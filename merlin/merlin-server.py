@@ -98,6 +98,28 @@ def put_num_frames_per_trigger(request):
     merlin.set(b'NUMFRAMESPERTRIGGER', value)
     return response.text('')
 
+@app.route('/continuousrw', methods=['GET'])
+def get_continuousrw(request):
+    gapless = bool(int(merlin.get(b'CONTINUOUSRW')))
+    return response.json({'value': gapless})
+
+@app.route('/continuousrw', methods=['PUT'])
+def put_continuousrw(request):
+    value = request.json['value']
+    merlin.set(b'CONTINUOUSRW', int(value))
+    return response.text('')
+
+@app.route('/counterdepth', methods=['GET'])
+def get_counterdepth(request):
+    depth = int(merlin.get(b'COUNTERDEPTH'))
+    return response.json({'value': depth})
+
+@app.route('/counterdepth', methods=['PUT'])
+def put_counterdepth(request):
+    value = request.json['value']
+    merlin.set(b'COUNTERDEPTH', value)
+    return response.text('')
+
 if __name__ == '__main__':
     try:
         app.run(host='0.0.0.0', port=8000)
