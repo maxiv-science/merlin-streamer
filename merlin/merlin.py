@@ -102,6 +102,7 @@ def handle_image(img, fh, dset):
     current = dset.shape[0]
     dset.resize(current+1, axis=0)
     dset.id.write_direct_chunk((current, 0, 0), compressed.tobytes())
+    return dset
 
 def worker(host, pipe):
     print('Worker process started')
@@ -139,7 +140,7 @@ def worker(host, pipe):
                         continue
                     acquired += 1
                     if writing:
-                        handle_image(img, fh, dset)
+                        dset = handle_image(img, fh, dset)
                     #print('acquired', acquired)
                     
                 if fd is pipe.fileno():
