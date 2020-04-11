@@ -7,6 +7,8 @@ import bitshuffle
 import numpy as np
 from multiprocessing import Process, Pipe
 
+DSET_NAME = '/entry/measurement/Merlin/data'
+
 def flush_socket(sock):
     total = 0
     while True:
@@ -90,7 +92,7 @@ def handle_image(img, fh, dset):
         shape = (0,) + img.shape
         maxshape = (None,) + img.shape
         chunks = (1,) + img.shape
-        dset = fh.create_dataset(dset_name, chunks=chunks,
+        dset = fh.create_dataset(DSET_NAME, chunks=chunks,
                                  shape=shape, maxshape=maxshape,
                                  compression=bitshuffle.BSHUF_H5FILTER,
                                  compression_opts=(0, bitshuffle.BSHUF_H5_COMPRESS_LZ4),
@@ -102,7 +104,6 @@ def handle_image(img, fh, dset):
     dset.id.write_direct_chunk((current, 0, 0), compressed.tobytes())
 
 def worker(host, pipe):
-    dset_name = '/entry/measurement/Merlin/data'
     print('Worker process started')
     data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     data_sock.connect((host, 6342))
@@ -116,7 +117,7 @@ def worker(host, pipe):
             writing = True
             if os.path.exists(filename):
                 fh = h5py.File(filename, 'r+')
-                dset = fh[dset_name]
+                dset = fh[DSET_NAME]
             else:
                 fh = h5py.File(filename, 'w')
                 dset = None
