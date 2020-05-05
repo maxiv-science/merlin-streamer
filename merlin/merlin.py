@@ -144,7 +144,9 @@ def worker(host, pipe):
                     #print('acquired', acquired)
                     
                 if fd is pipe.fileno():
-                    pass
+                    msg = pipe.recv()
+                    print('pipe', msg)
+                    timeout = 2.0 * msg['acquisition_time']
                     
         if writing:
             fh.close()
@@ -206,7 +208,10 @@ class Merlin:
         print('recv', self.pipe.recv())
         
     def stop(self):
+        # convert from ms to seconds
+        acquisition_time = float(self.get(b'ACQUISITIONTIME')) * 1.0e-3
         self.cmd(b'STOPACQUISITION')
+        self.pipe.send({'command': 'stop', 'acquisition_time': acquisition_time})
 
 if __name__ == '__main__':
     merlin = Merlin('172.16.126.78')
