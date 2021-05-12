@@ -21,7 +21,7 @@ def put_start(request):
 
 
 @app.route('/stop', methods=['PUT'])
-def put_start(request):
+def put_stop(request):
     print('stop')
     merlin.stop()
     return response.text('')
