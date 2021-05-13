@@ -1,6 +1,5 @@
 from merlin import Merlin
-from sanic import Sanic
-from sanic import response
+from sanic import Sanic, response
 
 app = Sanic(name='Merlin Server')
 merlin = Merlin('172.16.126.78')
@@ -13,10 +12,10 @@ def put_arm(request):
 
 
 @app.route('/start', methods=['PUT'])
-def put_start(request):
+async def put_start(request):
     print('start')
     nframes = request.json['value']
-    merlin.start(nframes)
+    await merlin.start(nframes)
     return response.text('')
 
 

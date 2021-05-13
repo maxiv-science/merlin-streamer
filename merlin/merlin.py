@@ -3,6 +3,7 @@ import time
 import h5py
 import socket 
 import select
+import asyncio
 import bitshuffle
 import numpy as np
 from multiprocessing import Process, Pipe
@@ -159,6 +160,9 @@ class Merlin:
         self.control_sock.connect((host, 6341))
         #flush_socket(self.control_sock)
         self.pipe, worker_pipe = Pipe(duplex=True)
+        loop = asyncio.get_event_loop()
+        self.event = asyncio.Event()
+        loop.add_reader(self.pipe.fileno(), self.event.set)
         self.process = Process(target=worker, args=(host, worker_pipe))
         self.process.start()
         self.filename = ''
@@ -199,12 +203,14 @@ class Merlin:
             time.sleep(100.0e-6)
         print('status', status)
         
-    def start(self, nframes):
+    async def start(self, nframes):
         self.pipe.send({'filename': self.filename, 'nframes': nframes})
         trigger_start = int(self.get(b'TRIGGERSTART'))
         if trigger_start == 5:
             #print('softtrigger')
             self.cmd(b'SOFTTRIGGER')
+        await self.event.wait()
+        self.event.clear()
         print('recv', self.pipe.recv())
         
     def stop(self):
