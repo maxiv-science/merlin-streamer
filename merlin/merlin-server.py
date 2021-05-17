@@ -2,7 +2,12 @@ from merlin import Merlin
 from sanic import Sanic, response
 
 app = Sanic(name='Merlin Server')
-merlin = Merlin('172.16.126.78')
+merlin = None
+
+@app.listener('before_server_start')
+async def start(app, loop):
+    global merlin
+    merlin = Merlin('172.16.126.78')
 
 
 @app.route('/arm', methods=['PUT'])
