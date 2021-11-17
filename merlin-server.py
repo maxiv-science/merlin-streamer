@@ -1,5 +1,8 @@
-from merlin import Merlin
+from merlin import Merlin, print_color
 from sanic import Sanic, response
+
+def print(msg):
+    print_color('server: %s' % msg, 'green')
 
 app = Sanic(name='Merlin Server')
 merlin = None
