@@ -119,7 +119,7 @@ def worker(host, pipe):
     print('Worker process started')
     data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     data_sock.connect((host, 6342))
-    #flush_socket(data_sock)
+    flush_socket(data_sock)
     writing = False
     while True:
         config = pipe.recv()
@@ -171,7 +171,7 @@ class Merlin:
         self.color = 'red'
         self.control_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.control_sock.connect((host, 6341))
-        #flush_socket(self.control_sock)
+        flush_socket(self.control_sock)
         self.pipe, worker_pipe = Pipe(duplex=True)
         loop = asyncio.get_event_loop()
         # event gets set when there's something to read on the pipe:
