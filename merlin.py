@@ -155,7 +155,7 @@ def worker(host, pipe):
         
 
 class Merlin:
-    def __init__(self, host):
+    def __init__(self, host, debug=False):
         self.control_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.control_sock.connect((host, 6341))
         #flush_socket(self.control_sock)
@@ -166,6 +166,11 @@ class Merlin:
         self.process = Process(target=worker, args=(host, worker_pipe))
         self.process.start()
         self.filename = ''
+        self.do_debug = debug
+
+    def debug(self, msg):
+        if self.do_debug:
+            print('debug: %s'%msg)
             
     def get(self, name):
         msg = b'MPX,%010d,GET,%s' %(len(name)+5, name)
@@ -192,6 +197,7 @@ class Merlin:
         return int(response[-1])
     
     def arm(self):
+        self.debug('entering arm()')
         self.cmd(b'STARTACQUISITION')
         # loop until detectorstatus is armed
         time.sleep(100.0e-3)
@@ -199,19 +205,22 @@ class Merlin:
             status = int(self.get(b'DETECTORSTATUS'))
             if status == 4 or status == 1:
                 break
-            print('arm status', status)
+            self.debug('arm status: %s' % status)
             time.sleep(100.0e-6)
-        print('status', status)
+        self.debug('arm status: %s' % status)
+        self.debug('leaving arm()')
         
     async def start(self, nframes):
+        self.debug('entering start()')
         self.pipe.send({'filename': self.filename, 'nframes': nframes})
         trigger_start = int(self.get(b'TRIGGERSTART'))
         if trigger_start == 5:
-            #print('softtrigger')
+            self.debug('soft triggering')
             self.cmd(b'SOFTTRIGGER')
         await self.event.wait()
         self.event.clear()
-        print('recv', self.pipe.recv())
+        self.debug('recv: %s' % self.pipe.recv())
+        self.debug('leaving start()')
         
     def stop(self):
         # convert from ms to seconds

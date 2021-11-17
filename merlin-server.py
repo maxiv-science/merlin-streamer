@@ -7,21 +7,24 @@ merlin = None
 @app.listener('before_server_start')
 async def start(app, loop):
     global merlin
-    merlin = Merlin('172.16.126.78')
+    merlin = Merlin('172.16.126.78', debug=True)
 
 
 @app.route('/arm', methods=['PUT'])
 def put_arm(request):
+    print('entering put_arm')
     merlin.arm()
     return response.text('')
+    print('leaving put_arm')
 
 
 @app.route('/start', methods=['PUT'])
 async def put_start(request):
-    print('start')
+    print('entering put_start')
     nframes = request.json['value']
     await merlin.start(nframes)
     return response.text('')
+    print('leaving put_start')
 
 
 @app.route('/stop', methods=['PUT'])
