@@ -5,6 +5,7 @@ def print(msg):
     print_color('server: %s' % msg, 'green')
 
 app = Sanic(name='Merlin Server')
+app.config['RESPONSE_TIMEOUT'] = 60 * 60 * 24 * 7
 merlin = None
 
 @app.listener('before_server_start')
