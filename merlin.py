@@ -3,6 +3,7 @@ import time
 import h5py
 import socket 
 import select
+import asyncio
 import bitshuffle
 import numpy as np
 from multiprocessing import Process, Pipe
@@ -104,15 +105,26 @@ def handle_image(img, fh, dset):
     dset.id.write_direct_chunk((current, 0, 0), compressed.tobytes())
     return dset
 
-def worker(host, pipe):
+def print_color(msg, color):
+    cols = {'red': '\033[91m',
+            'green': '\033[92m',
+            'blue': '\033[94m',
+            'cyan': '\033[96m',
+            'black': '\033[0m'}
+    print(cols[color], msg, cols['black'])
+
+def worker(host, pipe, debug):
+    def print(msg):
+        if debug:
+            print_color('worker: %s'%msg, 'blue')
     print('Worker process started')
     data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     data_sock.connect((host, 6342))
-    #flush_socket(data_sock)
+    flush_socket(data_sock)
     writing = False
     while True:
         config = pipe.recv()
-        print(config)
+        print('received config over pipe: %s' % config)
         filename = config['filename']
         if filename:
             writing = True
@@ -135,59 +147,82 @@ def worker(host, pipe):
                 break
             for fd in rfs:
                 if fd is data_sock:
+                    print('calling get_data()')
                     img = get_data(data_sock)
+                    print('get_data() returned %s' % (None if img is None else (img.shape,)))
                     if img is None:
                         continue
                     acquired += 1
                     if writing:
                         dset = handle_image(img, fh, dset)
-                    #print('acquired', acquired)
+                    print('acquired %s' % acquired)
                     
                 if fd is pipe.fileno():
                     msg = pipe.recv()
-                    print('pipe', msg)
+                    print('pipe %s' % msg)
                     timeout = 2.0 * msg['acquisition_time']
                     
         if writing:
             fh.close()
         pipe.send('Done')
-        
+
 
 class Merlin:
-    def __init__(self, host):
+    def __init__(self, host, debug=False):
+        self.color = 'red'
         self.control_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.control_sock.connect((host, 6341))
-        #flush_socket(self.control_sock)
+        flush_socket(self.control_sock)
         self.pipe, worker_pipe = Pipe(duplex=True)
-        self.process = Process(target=worker, args=(host, worker_pipe))
+        loop = asyncio.get_event_loop()
+        # event gets set when there's something to read on the pipe:
+        self.event = asyncio.Event()
+        loop.add_reader(self.pipe.fileno(), self.event.set)
+        self.process = Process(target=worker, args=(host, worker_pipe, debug))
         self.process.start()
         self.filename = ''
+        self.do_debug = debug
+
+    def debug(self, msg):
+        if self.do_debug:
+            print_color('Merlin object: %s'%msg, self.color)
+
+    def check_response(self, response):
+        if response[-1] == '0':
+            pass
+        elif response[-1] == '1':
+            raise RuntimeError('Sent a command, but Merlin was busy (code 1)')
+        elif response[-1] == '2':
+            raise RuntimeError('Sent a command that Merlin didnt recognize (code 2)')
+        elif response[-1] == '3':
+            raise RuntimeError('Sent a command but parameter was out of range (code 3)')
             
     def get(self, name):
         msg = b'MPX,%010d,GET,%s' %(len(name)+5, name)
         self.control_sock.send(msg)
-        #print(msg)
         response = recv(self.control_sock).decode()
-        #print(response)
         parts = response.split(',')
-        assert parts[-1] == '0'
+        self.check_response(response)
         return parts[-2]
     
     def set(self, name, value):
+        self.debug('setting %s=%s' % (name.decode(), value))
         msg = b',SET,%s,%s' % (name, str(value).encode())
         msg = b'MPX,%010d%s' % (len(msg), msg)
+        self.debug('sending: "%s"' % msg)
         self.control_sock.send(msg)
         response = recv(self.control_sock).decode()
-        assert response[-1] == '0', response
+        self.check_response(response)
 
     def cmd(self, cmd):
         msg = b'MPX,%010d,CMD,%s' %(len(cmd)+5, cmd)
         self.control_sock.send(msg)
         response = recv(self.control_sock).decode()
-        assert response[-1] == '0'
+        self.check_response(response)
         return int(response[-1])
     
     def arm(self):
+        self.debug('entering arm()')
         self.cmd(b'STARTACQUISITION')
         # loop until detectorstatus is armed
         time.sleep(100.0e-3)
@@ -195,17 +230,28 @@ class Merlin:
             status = int(self.get(b'DETECTORSTATUS'))
             if status == 4 or status == 1:
                 break
-            print('arm status', status)
+            self.debug('arm status: %s' % status)
             time.sleep(100.0e-6)
-        print('status', status)
+        self.debug('arm status: %s' % status)
+        self.debug('leaving arm()')
         
-    def start(self, nframes):
+    async def start(self, nframes):
+        self.debug('entering start()')
         self.pipe.send({'filename': self.filename, 'nframes': nframes})
         trigger_start = int(self.get(b'TRIGGERSTART'))
         if trigger_start == 5:
-            #print('softtrigger')
+            self.debug('soft triggering')
             self.cmd(b'SOFTTRIGGER')
-        print('recv', self.pipe.recv())
+        await self.event.wait()
+        self.event.clear()
+        try:
+            ret = ''
+            ret = self.pipe.recv()
+        except EOFError:
+            self.debug('got nothing back from the worker. but how is that possible, if the event is set then pipe.fileno must be ready, right?')
+            pass
+        self.debug('recv: %s' % ret)
+        self.debug('leaving start()')
         
     def stop(self):
         # convert from ms to seconds

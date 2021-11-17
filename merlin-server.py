@@ -1,23 +1,34 @@
-from merlin import Merlin
-from sanic import Sanic
-from sanic import response
+from merlin import Merlin, print_color
+from sanic import Sanic, response
+
+def print(msg):
+    print_color('server: %s' % msg, 'green')
 
 app = Sanic(name='Merlin Server')
-merlin = Merlin('172.16.126.78')
+app.config['RESPONSE_TIMEOUT'] = 60 * 60 * 24 * 7
+merlin = None
+
+@app.listener('before_server_start')
+async def start(app, loop):
+    global merlin
+    merlin = Merlin('172.16.126.78', debug=True)
 
 
 @app.route('/arm', methods=['PUT'])
 def put_arm(request):
+    print('entering put_arm')
     merlin.arm()
     return response.text('')
+    print('leaving put_arm')
 
 
 @app.route('/start', methods=['PUT'])
-def put_start(request):
-    print('start')
+async def put_start(request):
+    print('entering put_start')
     nframes = request.json['value']
-    merlin.start(nframes)
+    await merlin.start(nframes)
     return response.text('')
+    print('leaving put_start')
 
 
 @app.route('/stop', methods=['PUT'])
@@ -129,6 +140,6 @@ def put_counterdepth(request):
 
 if __name__ == '__main__':
     try:
-        app.run(host='0.0.0.0', port=8000, workers=1, access_log=False)
+        app.run(host='0.0.0.0', port=8000, workers=1, access_log=False, debug=True, auto_reload=False)
     except KeyboardInterrupt:
         merlin.process.terminate()
