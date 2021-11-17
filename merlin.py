@@ -113,9 +113,10 @@ def print_color(msg, color):
             'black': '\033[0m'}
     print(cols[color], msg, cols['black'])
 
-def worker(host, pipe):
+def worker(host, pipe, debug):
     def print(msg):
-        print_color('worker: %s'%msg, 'blue')
+        if debug:
+            print_color('worker: %s'%msg, 'blue')
     print('Worker process started')
     data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     data_sock.connect((host, 6342))
@@ -123,7 +124,7 @@ def worker(host, pipe):
     writing = False
     while True:
         config = pipe.recv()
-        print('received: %s' % config)
+        print('received config over pipe: %s' % config)
         filename = config['filename']
         if filename:
             writing = True
@@ -158,7 +159,7 @@ def worker(host, pipe):
                     
                 if fd is pipe.fileno():
                     msg = pipe.recv()
-                    print('pipe % s' % msg)
+                    print('pipe %s' % msg)
                     timeout = 2.0 * msg['acquisition_time']
                     
         if writing:
@@ -177,7 +178,7 @@ class Merlin:
         # event gets set when there's something to read on the pipe:
         self.event = asyncio.Event()
         loop.add_reader(self.pipe.fileno(), self.event.set)
-        self.process = Process(target=worker, args=(host, worker_pipe))
+        self.process = Process(target=worker, args=(host, worker_pipe, debug))
         self.process.start()
         self.filename = ''
         self.do_debug = debug
