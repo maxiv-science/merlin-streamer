@@ -140,6 +140,6 @@ def put_counterdepth(request):
 
 if __name__ == '__main__':
     try:
-        app.run(host='0.0.0.0', port=8000, workers=1, access_log=False, debug=True)
+        app.run(host='0.0.0.0', port=8000, workers=1, access_log=False, debug=True, auto_reload=False)
     except KeyboardInterrupt:
         merlin.process.terminate()
