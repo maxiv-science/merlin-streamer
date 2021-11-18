@@ -27,13 +27,15 @@ def recv(sock):
     header = bytearray(14)
     view = memoryview(header)
     while header_char < 3:
-        sock.recv_into(view[header_char:], 1)
+        nbytes = sock.recv_into(view[header_char:], 1)
         if header[header_char] == mpx[header_char]:
             header_char += 1
+        elif nbytes == 0:
+            raise RuntimeError('Socket %s is dead' % sock)
         else:
+            print('Unexpected charater in header at position %d: %s'%
+                        (header_char, header[header_char]))
             header_char = 0
-            print('Unexpected charater in header')
-            print(header)
             
     # read rest of the header, exclude \x00 string terminators in the middle
     while header_char < 13:
@@ -148,7 +150,11 @@ def worker(host, pipe, debug):
             for fd in rfs:
                 if fd is data_sock:
                     print('calling get_data()')
-                    img = get_data(data_sock)
+                    try:
+                        img = get_data(data_sock)
+                    except Exception as e:
+                        pipe.send(str(e))
+                        raise
                     print('get_data() returned %s' % (None if img is None else (img.shape,)))
                     if img is None:
                         continue
@@ -245,10 +251,13 @@ class Merlin:
         await self.event.wait()
         self.event.clear()
         try:
-            ret = ''
             ret = self.pipe.recv()
+            self.debug('got this in the pipe: %s' % ret)
+            if ret != 'Done':
+                self.debug('Something bad has happend to my worker!')
+                raise RuntimeError(ret)
         except EOFError:
-            self.debug('got nothing back from the worker. but how is that possible, if the event is set then pipe.fileno must be ready, right?')
+            self.debug('Got nothing back from the worker, which might seem odd because we only read from the pipe when its fd is ready. But this happens when the worker dies.')
             pass
         self.debug('recv: %s' % ret)
         self.debug('leaving start()')
