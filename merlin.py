@@ -44,43 +44,38 @@ def recv(sock):
             header_char += 1
     sock.recv_into(view[header_char:], 1)
     
+    # get the length of the remaining message
     try:
         length = int(header[4:])
     except:
-        print('Strange header!!')
         after = sock.recv(1024)
+        print('Strange header!')
         print(header)
         print(after)
-        fh = open('error.log', 'wb')
-        fh.write(b'header\n')
-        fh.write(header)
-        fh.write('\n')
-        fh.write(b'after header\n')
-        fh.write(after)
-        fh.close()
-        exit(-1)
+        raise RuntimeError('Strange header')
     
     # read rest of the message
     data = bytearray(length)
-    toread = length
     view = memoryview(data)
-    while toread:
-        nbytes = sock.recv_into(view, toread)
+    while length:
+        nbytes = sock.recv_into(view, length)
         view = view[nbytes:]
-        toread -= nbytes
+        length -= nbytes
     return data
     
 def get_data(sock):
     payload = recv(sock)
     header_id = payload[1:4]
-    if header_id == b'HDR':
-        #print('Acquistion header')
+    if header_id == b'HDR': # acquisition header
         return None
-    if header_id == b'MQ1':
-        #print('Frame header')
+    if header_id == b'MQ1': # frame header
         #added one because they forgot to count the , in the beginning for the offset
-        data_offset = int(payload[12:17]) + 1
-        pixel_depth = payload[31:34]
+        try:
+            data_offset = int(payload[12:17]) + 1
+            pixel_depth = payload[31:34]
+        except:
+            print(payload)
+            raise
         if pixel_depth == b'U16':
             dtype = np.dtype('>u2')
         elif pixel_depth == b'U32':
